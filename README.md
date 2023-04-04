@@ -100,3 +100,5 @@ After entering the game again, I found that the laser gun's projectile could be 
 However, there was still one question lingering in my mind: why could the bullets from the plasma gun and the conventional gun be generated in the same turn, but not the laser gun? This clearly had something to do with the weapon's numerical design. So, I opened the backpack in the game and began browsing through all the weapons' information, looking for something related to turns (I had never looked at their specific information in the game before), and finally, I found a weapon attribute called 'Attack Turns', with values of 0, 1, and 2 for the laser, conventional, and plasma weapons, respectively.
 
 This was a very interesting discovery. I had always thought that the laser had a longer attack time than other weapons, but in fact, it was the shortest. There must be a reason why it was so special that it could only generate bullets in the next turn. After carefully reviewing all the functions in 'Turns', I realized that my previous understanding of the 'turns' in the game had actually overlooked an important detail.
+
+(undone yet)
