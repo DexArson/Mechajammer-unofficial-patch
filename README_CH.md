@@ -33,7 +33,7 @@ if (this.recoveryTurns < 0)
 }
 ```
 
-显然，我的Grace达到3点时会导致`this.reloadTurns == 1`且`this.recoveryTurns <= 0`（其中，this指的就是CharacterInfo对象，这两个是其成员变量）。reloadTurns显然影响的是装填，和开火没什么关系，于是我尝试修改了`recoveryTurns`，让其在满足`this.recoveryTurns <= 0`的情况下强制为1，再次打开游戏，激光手枪又能正常开火了。
+显然，我的Grace达到3点时会导致`this.reloadTurns == 1`且`this.recoveryTurns == 0`（其中，this指的就是CharacterInfo对象，这两个是其成员变量）。reloadTurns显然影响的是装填，和开火没什么关系，于是我尝试修改了`recoveryTurns`，让其在满足`this.recoveryTurns <= 0`的情况下强制为1，再次打开游戏，激光手枪又能正常开火了。
 
 但仅仅是让激光枪能正常开火并不能满足我。毕竟从代码上看，开发者对这个能力的设置是让其最小能等于0的。况且这显然只是更深层次问题的一个浅层表现，如果仅止步于此，那么未解决的底层问题可能会引起其它的bug现象。
 

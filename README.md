@@ -33,7 +33,7 @@ if (this.recoveryTurns < 0)
 }
 ```
 
-Obviously, when my Grace skill points reached 3, it caused `this.reloadTurns == 1` and `this.recoveryTurns <= 0` (`this` refers to the `CharacterInfo` object, and these two are its member variables). reloadTurns obviously affects reloading, which has nothing to do with firing, so I tried modifying `recoveryTurns` to force it to 1 when `this.recoveryTurns <= 0`. After opening the game again, the laser pistol could fire normally again.
+Obviously, when my Grace skill points reached 3, it caused `this.reloadTurns == 1` and `this.recoveryTurns == 0` (`this` refers to the `CharacterInfo` object, and these two are its member variables). reloadTurns obviously affects reloading, which has nothing to do with firing, so I tried modifying `recoveryTurns` to force it to 1 when `this.recoveryTurns <= 0`. After opening the game again, the laser pistol could fire normally again.
 
 But simply allowing the laser gun to fire normally is not enough for me. After all, from the code perspective, the game developer set this skill to have a minimum value of 0. Moreover, this is clearly just a superficial manifestation of a deeper issue. If I stop at this point, the unresolved underlying problem may cause other bugs to appear.
 
