@@ -5,7 +5,7 @@
 
 # 下载链接
 
-请查看本github仓库的Releases页面。
+请查看[本github仓库的Releases页面](https://github.com/DexArson/Mechajammer-unofficial-patch/releases)。
 
 # 使用方法
 
@@ -20,9 +20,9 @@
 
 我先是找到了游戏的存档文件。修改这个游戏的存档简直毫无难度——它甚至不是用二进制存储的，而是直接用文本信息存储的。我分别单独修改了Grace和激光技能，然后发现问题出在Grace上。当我把Grace从3改到2时，激光枪又能正常开火了。但我并不想因为这个bug而永远将Grace维持到2，于是我开始反编译游戏文件，希望从代码层面上定位问题。
 
-首先我找到了掷骰子里和Grace相关的部分，并进行了一些修改和测试，但是问题依旧。
+首先我找到了和游戏中掷骰子机制相关代码里和Grace相关的部分，并进行了一些修改和测试，但是问题依旧。
 
-然后我开始从Grace主要影响的“回合判定”问题着手，浏览游戏的回合判定部分代码。我发现在`CharaterInfo`类的`UpdateStats`函数中，有如下代码：
+然后我开始从受Grace影响的另一个东西“回合判定”问题着手，浏览游戏的回合判定部分代码。我发现在`CharaterInfo`类的`UpdateStats`函数中，有如下代码：
 
 ```cs
 this.reloadTurns = 3 - ((int)this.Grace + (int)this.GraceMod);
@@ -33,7 +33,7 @@ if (this.recoveryTurns < 0)
 }
 ```
 
-显然，我的Grace达到3点时会导致`this.reloadTurns == 1`且`this.recoveryTurns <= 0`（其中，this指的就是CharacterInfo对象，这两个是其成员变量）。reloadTurns显然影响的是装填，和开火没什么关系，于是我尝试修改了recoveryTurns，让其在满足`this.recoveryTurns <= 0`的情况下强制为1，再次打开游戏，激光手枪又能正常开火了。
+显然，我的Grace达到3点时会导致`this.reloadTurns == 1`且`this.recoveryTurns <= 0`（其中，this指的就是CharacterInfo对象，这两个是其成员变量）。reloadTurns显然影响的是装填，和开火没什么关系，于是我尝试修改了`recoveryTurns`，让其在满足`this.recoveryTurns <= 0`的情况下强制为1，再次打开游戏，激光手枪又能正常开火了。
 
 但仅仅是让激光枪能正常开火并不能满足我。毕竟从代码上看，开发者对这个能力的设置是让其最小能等于0的。况且这显然只是更深层次问题的一个浅层表现，如果仅止步于此，那么未解决的底层问题可能会引起其它的bug现象。
 
@@ -55,7 +55,7 @@ public class Turns : MonoBehaviour{};
 
 我在`AttackLine.Update()`和其调用的`AttackLine.DoUpdate()`中手动添加了一些“调试信息”，让其能够输出子弹的当前位置及朝向信息，以及函数的当前的执行位置。最后发现，激光枪在执行开火后，射弹确实在下一回合产生，并且此时产生的射弹初始位置坐标显然是一个错误值：(10000,0,0)，这证实了我的一部分猜想。那么接下来要搞明白的问题是，为什么子弹的初始位置没有正确地初始化？
 
-观察`AttackLine.DoUpdate()`的函数体，不难看出它的意图：在AttackLine对象的Update第一次被调用时，它会将`AttackLine`的一个bool型成员变量`wpnSet`的值设为`true`，以表明该射弹的基础信息已完成初始化。直觉告诉我这可能和bug真正的原因有关系。因此我尝试在游戏运行时监控此值，发现当射弹位置出现(10000,0,0)错误的同时，`wpnSet == true`。而从这个变量被设置的意图来看，这显然是不对的。再看一下`AttackLine.DoUpdate()`的总体结构：
+再看一下`AttackLine.DoUpdate()`的总体结构：
 
 ```cs
 public void DoUpdate()
@@ -72,8 +72,9 @@ public void DoUpdate()
 }
 ```
 
-答案已经很明确了。<u>在第一回合执行结束后，游戏进入暂停状态，而此时AttackLine对象开始进行第一次自己的`DoUpdate()`方法调用。但注意，由于此时 `!GameBrain.boo.turns.turnPaused`的值为`false`，这个对象在未进行完基础信息初始化前就退出了。然而！由于
-`this.wpnSet = true;`的赋值语句存在于`if (!GameBrain.boo.turns.turnPaused)`之外，所以无论回合是否暂停，这条赋值语句必定执行。在之后的DoUpdate中，AttackLine对象以为它的射弹基础信息已被正确初始化了，于是开始以此基础计算弹道，但实际上它没有，所以它计算出了错误的子弹位置，子弹直接生成到爪哇国去了，当然是无法击中敌人的。</u>
+不难看出它的意图：在AttackLine对象的Update第一次被调用时，它会将`AttackLine`的一个bool型成员变量`wpnSet`的值设为`true`，以表明该射弹的基础信息已完成初始化。直觉告诉我这可能和bug真正的原因有关系。因此我尝试在游戏运行时监控此值，发现当射弹位置出现(10000,0,0)错误的同时，`wpnSet == true`。而从这个变量被设置的意图来看，这显然是不对的。
+
+答案已经很明确了。<span style="text-decoration:underline;">在第一回合执行结束后，游戏进入暂停状态，而此时AttackLine对象开始进行第一次自己的`DoUpdate()`方法调用。但注意，由于此时 `!GameBrain.boo.turns.turnPaused`的值为`false`，这次调用在未进行完基础信息初始化前就退出了。然而！由于`this.wpnSet = true;`的赋值语句存在于`if (!GameBrain.boo.turns.turnPaused)`之外，所以无论回合是否暂停，这条赋值语句必定执行。在之后的DoUpdate中，AttackLine对象以为它的射弹基础信息已被正确初始化了，于是开始以此基础计算弹道，但实际上它没有，所以它计算出了错误的子弹位置，子弹直接生成到爪哇国去了，当然是无法击中敌人的。</span>
 
 于是我将DoUpdate的函数体改为如下形式：
 
@@ -100,8 +101,8 @@ public void DoUpdate()
 
 这是一个很有意思的事，之前我一直以为激光要比其它武器的攻击时间长，但实际上它是最短的。这里面肯定有什么原因让它无比特殊地在下一个回合才生成射弹。在仔细浏览了Turns中的各个函数后，我发现我之前对这个游戏的“回合”的理解其实忽略了一个重要的细节。
 
-<u>游戏的“回合”概念在架构层面上其实并不是以玩家为中心的。当游戏每进行一次暂停让玩家选择操作时，其实中间已经过了很多个回合。每个回合的时长被一个计时器严格地监控和限制，而Turns对象每帧会检查当前玩家状态并做出对应的决策（如判断战斗结束等）。攻击准备（前摇）、攻击执行、和物品交互等动作其实都占用了单个或多个回合——具体回合数取决于当前玩家的属性、装备数值、动作类型等。而当玩家处于硬直状态，或action recovery turn中时游戏是不会进入暂停状态的，这让人产生了一种这个回合没有结束的错觉，而事实上此时可能已经有多个回合结束了。</u>
+<span style="text-decoration:underline;">游戏的“回合”概念在架构层面上其实并不是以玩家为中心的。当游戏每进行一次暂停让玩家选择操作时，其实中间已经过了很多个回合。每个回合的时长被一个计时器严格地监控和限制，而Turns对象每帧会检查当前玩家状态并做出对应的决策（如判断战斗结束等）。攻击准备（前摇）、攻击执行、和物品交互等动作其实都占用了单个或多个回合——具体回合数取决于当前玩家的属性、装备数值、动作类型等。而当玩家处于硬直状态，或action recovery turn中时游戏是不会进入暂停状态的，这让人产生了一种这个回合没有结束的错觉，而事实上此时可能已经有多个回合结束了。</span>
 
-<u>说回武器的Attack Turns属性：由于Grace为3且手持Attack Turn为0时，玩家的攻击动作和射弹生成会被认为真正地在同一个回合中执行，而当射弹开始执行第一个Update函数时，这个回合刚好结束，而又由于Grace为3时action recovery turns恰为0，这意味着玩家将立刻开始行动，因此游戏执行了暂停，让玩家进行操作。结果因为上面的代码逻辑错误，恰好导致了射弹初始化异常。</u>
+<span style="text-decoration:underline;">说回武器的Attack Turns属性：由于Grace为3且手持Attack Turn为0时，玩家的攻击动作和射弹生成会被认为真正地在同一个回合中执行，而当射弹开始执行第一个Update函数时，这个回合刚好结束，而又由于Grace为3时action recovery turns恰为0，这意味着玩家将立刻开始行动，因此游戏执行了暂停，让玩家进行操作。结果因为上面的代码逻辑错误，恰好导致了射弹初始化异常。</span>
 
 至此，所有的问题都说得通了！
